@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(FAC_STATIC "Build the library as static (default OFF)" OFF)
+option(FAC_STATIC "Build the library as static (default OFF)" ON)
 
 set(LIBRARY_TYPE STATIC)
 if(NOT FAC_STATIC)

@@ -23,7 +23,7 @@ std::vector<unsigned char> FAC::loadFile(std::string filename)
 {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
 
-    if (!file)
+    if (!file.is_open())
     {
         throw FAC::Exception(FAC::NO_PERMISSION, "Could not open the file");
     }
@@ -42,7 +42,7 @@ std::vector<unsigned char> FAC::loadFile(std::string filename, int start, int en
 {
     std::ifstream file(filename, std::ios::binary);
 
-    if (!file)
+    if (!file.is_open())
     {
         throw FAC::Exception(FAC::NO_PERMISSION, "Could not open the file");
     }
@@ -54,7 +54,7 @@ std::vector<unsigned char> FAC::loadFile(std::string filename, int start, int en
 
     std::streamsize numBytesToRead = end - start;
 
-    if (numBytesToRead < fileSize)
+    if (numBytesToRead > fileSize)
     {
         throw FAC::Exception(FAC::WRONG_INDEX, "Out of bound");
     }

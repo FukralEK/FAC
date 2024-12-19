@@ -131,8 +131,6 @@ void unpackArchive(Operation operation)
 	return;
 }
 
-
-
 void packArchive(Operation operation)
 {
 	FAC::ArchiveHeader header;
@@ -154,7 +152,7 @@ void packArchive(Operation operation)
 		throw std::runtime_error("The output path is a directory");
 	}
 
-	if (fs::exists(fs::path(operation.output).parent_path()))
+	if (!fs::exists(fs::path(operation.output).parent_path()))
 	{
 		throw std::runtime_error("The parent directory of the output path does not exist");
 	}
