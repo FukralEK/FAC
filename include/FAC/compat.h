@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <string>
-
+#include <cstdint>
 
 #ifdef _WIN32
 #ifdef IS_FAC_BUILT

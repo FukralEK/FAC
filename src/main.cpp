@@ -113,7 +113,9 @@ void packArchive(Operation operation)
 		}
 	}
 
-	FAC::saveFile(FAC::createArchive(header), operation.output);
+	auto data = FAC::createArchive(header);
+
+	FAC::saveFile(data, operation.output);
 
 	return;
 }
