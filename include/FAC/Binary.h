@@ -1,9 +1,9 @@
 #pragma once
 #include <cstdint>
+#include "compat.h"
 
 namespace FAC
 {
-    // TO DO: Error handling
     inline std::vector<unsigned char> int32ToBytes(uint32_t value) {
         std::vector<unsigned char> bytes(4);
         bytes[0] = static_cast<unsigned char>((value >> 24) & 0xFF); 
@@ -14,7 +14,11 @@ namespace FAC
     }
 
     inline uint32_t bytesToInt32(const std::vector<unsigned char>& bytes) {
-
+        if (bytes.size() != 4)
+        {
+            throw FAC::Exception(FAC::BINARY_NUMBER_SIZE_NOT_MATCH, "The size is not 4 bytes");
+            return 0;
+        }
         return (static_cast<uint32_t>(bytes[0]) << 24) |
             (static_cast<uint32_t>(bytes[1]) << 16) |
             (static_cast<uint32_t>(bytes[2]) << 8) |
@@ -33,6 +37,12 @@ namespace FAC
         return bytes;
     }
     inline uint64_t bytesToInt64(const std::vector<unsigned char>& bytes) {
+        if (bytes.size() != 8)
+        {
+            throw FAC::Exception(FAC::BINARY_NUMBER_SIZE_NOT_MATCH, "The size is not 8 bytes");
+            return 0;
+        }
+
         return (static_cast<uint64_t>(bytes[0]) << 56) |
             (static_cast<uint64_t>(bytes[1]) << 48) |
             (static_cast<uint64_t>(bytes[2]) << 40) |
