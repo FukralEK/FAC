@@ -27,8 +27,8 @@ void printHelp();
 
 int main(int argc, char** argv)
 {
-	printf("FAC Tools for FAC Version %i\n", FILE_FORMAT_VERSION);
-	printf("Made by FukralEK. Open Source\n\n\n");
+	printf("FAC Tools for FAC files version %i\n", FILE_FORMAT_VERSION);
+	printf("MIT License\n");
 	auto arguments = parseArguments(argc, argv);
 
 	for (auto& argument : arguments)
@@ -45,6 +45,18 @@ int main(int argc, char** argv)
 
 	try
 	{
+		if (operation.input == "" && operation.output == "")
+		{
+			throw std::runtime_error("Input and output were not specified");
+		}
+		if (operation.input == "")
+		{
+			throw std::runtime_error("Input was not specified");
+		}
+		if (operation.output == "")
+		{
+			throw std::runtime_error("Output was not specified");
+		}
 		printOperationInfo(operation);
 		switch (operation.type)
 		{
@@ -89,7 +101,7 @@ void printOperationInfo(Operation operation)
 		break;
 	}
 	printf("Input: %s\n", operation.input.c_str());
-	printf("Output: %s\n\n\n", operation.output.c_str());
+	printf("Output: %s\n", operation.output.c_str());
 }
 
 void unpackArchive(Operation operation)
@@ -98,15 +110,15 @@ void unpackArchive(Operation operation)
 	{
 		throw std::runtime_error("The path is a directory");
 	}
-	if (fs::exists(operation.input))
+	if (!fs::exists(operation.input))
 	{
 		throw std::runtime_error("The file does not exist");
 	}
-	auto header = FAC::loadArchiveHeaderFromFile(operation.input);
+	FAC::ArchiveHeader header(operation.input);
 
-	for (auto &file : header.files)
+	for (int i = 0; i < header.files.size(); i++)
 	{
-		FAC::loadFileFromArchive(header, file.name);
+		header.loadFile(i);
 	}
 
 	for (auto& file : header.files)
@@ -170,7 +182,7 @@ void packArchive(Operation operation)
 		}
 	}
 
-	auto data = FAC::createArchive(header);
+	auto data = header.binary();
 
 	FAC::saveFile(data, operation.output);
 
@@ -229,8 +241,10 @@ std::vector<std::string> parseArguments(int argc, char** argv)
 
 void printHelp()
 {
-	printf("Parameters\n");
+	printf("Arguments: \n");
 	printf("\t--pack - pick directory to pack\n");
 	printf("\t--unpack - pick .FAC file to unpack\n");
 	printf("\t--output - pick output\n");
+	printf("\t--encrypt - encrypt the output with \n");
+	printf("\t--compress - compress the output\n");
 }

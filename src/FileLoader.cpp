@@ -4,9 +4,7 @@
 #include <filesystem>
 
 namespace fs = std::filesystem;
-
-// TO DO: Error handling
-
+ 
 void FAC::saveFile(std::vector<unsigned char> &data, std::string filename)
 {
     std::ofstream file(filename, std::ios::binary);
@@ -22,6 +20,16 @@ void FAC::saveFile(std::vector<unsigned char> &data, std::string filename)
 std::vector<unsigned char> FAC::loadFile(std::string filename)
 {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
+
+    if (!fs::exists(filename))
+    {
+        throw FAC::Exception(FAC::FILE_NOT_FOUND, "File does not exist");
+    }
+
+    if (fs::is_directory(filename))
+    {
+        throw FAC::Exception(FAC::PATH_IS_DIRECTORY, "The path is directory");
+    }
 
     if (!file.is_open())
     {
@@ -42,6 +50,16 @@ std::vector<unsigned char> FAC::loadFile(std::string filename, int start, int en
 {
     std::ifstream file(filename, std::ios::binary);
 
+    if (fs::is_directory(filename))
+    {
+        throw FAC::Exception(FAC::PATH_IS_DIRECTORY, "The path is directory");
+    }
+
+    if (!fs::exists(filename))
+    {
+        throw FAC::Exception(FAC::FILE_NOT_FOUND, "File does not exist");
+    }
+
     if (!file.is_open())
     {
         throw FAC::Exception(FAC::NO_PERMISSION, "Could not open the file");
@@ -54,7 +72,7 @@ std::vector<unsigned char> FAC::loadFile(std::string filename, int start, int en
 
     std::streamsize numBytesToRead = end - start;
 
-    if (numBytesToRead > fileSize)
+    if (numBytesToRead > fileSize - start)
     {
         throw FAC::Exception(FAC::WRONG_INDEX, "Out of bound");
     }

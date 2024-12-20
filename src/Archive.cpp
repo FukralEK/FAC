@@ -10,52 +10,47 @@ constexpr auto FLAG_ENCRYPTED = (1 << 2);;
 
 namespace fs = std::filesystem;
 
-FAC::ArchiveHeader FAC::loadArchiveHeaderFromFile(std::string file)
+
+void FAC::ArchiveHeader::loadArchive()
 {
-	ArchiveHeader header;
+	if (!fs::exists(filename))
+	{
+		throw FAC::Exception(FAC::NOT_EXISTING_FILE, "The file does not exist");
+	}
+	if (fs::is_directory(filename))
+	{
+		throw FAC::Exception(FAC::PATH_IS_DIRECTORY, "The path is a directory");
+	}
+
+	files.clear();
 
 	// Load the header with flags
-	auto headerData = FAC::loadFile(file, 0, 6);
+	auto headerData = FAC::loadFile(filename, 0, 6);
 	if (headerData[0] == 0x69 && headerData[1] == 0xFF && headerData[2] == 0xAA && headerData[3] == 0xCC)
 	{
 		if (headerData[4] != FILE_FORMAT_VERSION)
 		{
 			throw FAC::Exception(FAC::INVALID_VERSION, "Version of the file format is incompatible with the current version of the tool");
-			return {};
 		}
 		if (headerData[5] & FLAG_COMPRESSED)
 		{
-			header.compressed = true;
+			compressed = true;
 		}
 		if (headerData[5] & FLAG_ENCRYPTED)
 		{
-			header.encrypted = true;
+			encrypted = true;
 		}
 	}
 	else  {
 		throw FAC::Exception(FAC::WRONG_HEADER, "FAC file format was not recognized");
-		return {};
-	}
-
-	header.file = file;
-
-	if (!fs::exists(file))
-	{
-		throw FAC::Exception(FAC::NOT_EXISTING_FILE, "The file does not exist");
-		return {};
-	}
-	if (fs::is_directory(file))
-	{
-		throw FAC::Exception(FAC::PATH_IS_DIRECTORY, "The path is a directory");
-		return {};
 	}
 
 	// Reading the data index
-	headerData = FAC::loadFile(file, 6, 6+8);
-	header.dataIndex = FAC::bytesToInt64(headerData);
+	headerData = FAC::loadFile(filename, 6, 6+8);
+	dataIndex = FAC::bytesToInt64(headerData);
 
 	// Reading the file table
-	headerData = FAC::loadFile(file, 5 + 8, header.dataIndex);
+	headerData = FAC::loadFile(filename, 5 + 8, dataIndex);
 
 	char mode = MODE_NONE;
 	int lastFile = -1;
@@ -63,12 +58,12 @@ FAC::ArchiveHeader FAC::loadArchiveHeaderFromFile(std::string file)
 
 	for (int i = 0; i < headerData.size(); i++)
 	{
-		lastFile = header.files.size()-1;
+		lastFile = files.size()-1;
 		if (headerData[i] == 0x21 && headerData[i+1] == 0xFF && headerData[i+2] == 0xAA && headerData[i+3] == 0xCC)
 		{
 			mode = MODE_READING_FILE_NAME;
 			i += 3;
-			header.files.push_back(FAC::File());
+			files.push_back(FAC::File());
 			continue;
 		}
 		if (headerData[i] == 0x37 && headerData[i + 1] == 0xFF && headerData[i + 2] == 0xAA && headerData[i + 3] == 0xCC)
@@ -83,51 +78,36 @@ FAC::ArchiveHeader FAC::loadArchiveHeaderFromFile(std::string file)
 		}
 		if (mode == MODE_READING_FILE_NAME)
 		{
-			header.files[lastFile].name.push_back(headerData[i]);
+			files[lastFile].name.push_back(headerData[i]);
 		}
 		if (mode == MODE_READING_FILE_INDEX)
 		{
 			temp.push_back(headerData[i]);
 			if (temp.size() == 8)
 			{
-				header.files[lastFile].index = FAC::bytesToInt64(temp);
+				files[lastFile].index = FAC::bytesToInt64(temp);
 				temp.clear();
 			}
 		}
 	}
-
-	return header;
 }
 
-void FAC::loadFileFromArchive(ArchiveHeader &archive, std::string file)
+void FAC::ArchiveHeader::loadFile(int index)
 {
-	int fileToGet = -1;
-	for (int i = 0; i < archive.files.size(); i++)
-	{
-		if (archive.files[i].name == file)
-		{
-			fileToGet = i;
-		}
-	}
-	if (fileToGet == -1)
-	{
-		throw FAC::Exception(FAC::FILE_NOT_FOUND, "The file was not found");
-		return;
-	}
 
-	int start = archive.dataIndex + archive.files[fileToGet].index;
+	int start = dataIndex + files[index].index;
 	int end = 0;
 
-	if (fileToGet + 1 == archive.files.size())
+	if (index + 1 == files.size())
 	{
-		end = FAC::getFileSize(archive.file);
+		end = FAC::getFileSize(filename);
 	}
-	else end = archive.dataIndex + archive.files[fileToGet + 1].index;
+	else end = dataIndex + files[index + 1].index;
 
-	archive.files[fileToGet].data = FAC::loadFile(archive.file, start, end);
+	files[index].data = FAC::loadFile(filename, start, end);
 }
 
-std::vector<unsigned char> FAC::createArchive(ArchiveHeader &header)
+std::vector<unsigned char> FAC::ArchiveHeader::binary()
 {
 	std::vector<unsigned char> archive;
 
@@ -147,11 +127,11 @@ std::vector<unsigned char> FAC::createArchive(ArchiveHeader &header)
 	// TO DO: Flags
 	char flags = 0x0;
 
-	if (header.compressed)
+	if (compressed)
 	{
 		flags |= FLAG_COMPRESSED;
 	}
-	if (header.encrypted)
+	if (encrypted)
 	{
 		flags |= FLAG_ENCRYPTED;
 	}
@@ -160,7 +140,7 @@ std::vector<unsigned char> FAC::createArchive(ArchiveHeader &header)
 
 	// Creating File Table
 	int fileSizes = 0;
-	for (auto& file : header.files)
+	for (auto& file : files)
 	{
 		fileTable.push_back(0x21);
 		fileTable.push_back(0xFF);
@@ -183,21 +163,19 @@ std::vector<unsigned char> FAC::createArchive(ArchiveHeader &header)
 	}
 
 
-	for (auto& file : header.files)
+	for (auto& file : files)
 	{
 		data.insert(data.end(), file.data.begin(), file.data.end());
 	}
 
 	// File Data Index
-	header.dataIndex = archive.size() + 8 + fileTable.size();
-	auto indexInBin = FAC::int64ToBytes(header.dataIndex);
+	dataIndex = archive.size() + 8 + fileTable.size();
+	auto indexInBin = FAC::int64ToBytes(dataIndex);
 	archive.insert(archive.end(), indexInBin.begin(), indexInBin.end());
 
 	archive.insert(archive.end(), fileTable.begin(), fileTable.end());
 	archive.insert(archive.end(), data.begin(), data.end());
 
-	fileTable.clear();
-	data.clear();
-
 	return archive;
 }
+
